@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "editor": "wokwi",
+
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp1",
+      "top": 110,
+      "left": 293.24,
+      "attrs": {}
+    },
+
+    {
+      "type": "wokwi-hc-sr04",
+      "id": "ultrasonic1",
+      "top": 111.5,
+      "left": 25.1,
+      "attrs": { "distance": "20" }
+    },
+
+    {
+      "type": "wokwi-servo",
+      "id": "servo1",
+      "top": 60,
+      "left": 490,
+      "attrs": {}
+    },
+
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 346.6,
+      "left": 10,
+      "attrs": {
+        "color": "green",
+        "xray": "1",
+        "label": "IR_IN (mo phong)"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn2",
+      "top": 346.6,
+      "left": 120,
+      "attrs": {
+        "color": "red",
+        "xray": "1",
+        "label": "IR_OUT (mo phong)"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "motorResistor",
+      "top": 410,
+      "left": 440,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "motorLed",
+      "top": 405,
+      "left": 510,
+      "attrs": { "color": "green", "label": "MOTOR ENA (LED mo phong)" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "motorNote",
+      "top": 465,
+      "left": 365,
+      "attrs": {
+        "text": "WOKWI: LED chi bao ENA; L298N + GA12-N20 chua mo phong"
+      }
+    }
+  ],
+
+  "connections": [
+    [ "ultrasonic1:VCC", "esp1:5V", "red", [ "v0" ] ],
+    [ "ultrasonic1:GND", "esp1:GND.1", "black", [ "v0" ] ],
+    [ "ultrasonic1:TRIG", "esp1:5", "green", [ "v0" ] ],
+    [ "ultrasonic1:ECHO", "esp1:18", "green", [ "v0" ] ],
+
+    [ "servo1:V+", "esp1:5V", "green", [ "h0" ] ],
+    [ "servo1:PWM", "esp1:13", "green", [ "h0" ] ],
+    [ "servo1:GND", "esp1:GND.1", "black", [ "h0" ] ],
+
+    [ "btn1:1.r", "esp1:27", "green", [ "v0" ] ],
+    [ "btn1:2.r", "esp1:GND.1", "green", [ "h0" ] ],
+
+    [ "btn2:1.r", "esp1:26", "red", [ "v0" ] ],
+    [ "btn2:2.r", "esp1:GND.1", "black", [ "h0" ] ],
+
+    [ "esp1:25", "motorResistor:1", "green", [ "v0" ] ],
+    [ "motorResistor:2", "motorLed:A", "green", [ "h0" ] ],
+    [ "motorLed:C", "esp1:GND.1", "black", [ "h0" ] ],
+
+    [ "esp1:17", "$serialMonitor:RX", "", [] ],
+    [ "esp1:16", "$serialMonitor:TX", "", [] ]
+  ],
+
+  "serialMonitor": {
+    "display": "always",
+    "newline": "lf"
+  },
+
+  "dependencies": {}
+}

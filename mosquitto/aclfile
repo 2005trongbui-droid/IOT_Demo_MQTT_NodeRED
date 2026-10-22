@@ -1,0 +1,15 @@
+# ESP32 may publish only its own upstream data and subscribe only to commands.
+user esp32
+topic write huit/nhom14/detai31/conveyor/telemetry
+topic write huit/nhom14/detai31/conveyor/event
+topic write huit/nhom14/detai31/conveyor/status
+topic write huit/nhom14/detai31/conveyor/keepalive
+topic read huit/nhom14/detai31/conveyor/command
+
+# Node-RED may read upstream data and publish downstream commands only.
+user nodered
+topic read huit/nhom14/detai31/conveyor/telemetry
+topic read huit/nhom14/detai31/conveyor/event
+topic read huit/nhom14/detai31/conveyor/status
+topic read huit/nhom14/detai31/conveyor/keepalive
+topic write huit/nhom14/detai31/conveyor/command

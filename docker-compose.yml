@@ -1,0 +1,53 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: nhom14-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      # The directory contains mosquitto.conf, aclfile, and the generated
+      # passwordfile. Run setup-mqtt-users.ps1 before starting this service.
+      - ./mosquitto:/mosquitto/config:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+  influxdb:
+    image: influxdb:2.7
+    container_name: nhom14-influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUX_USER:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_PASSWORD:-nhom14demo12345}
+      DOCKER_INFLUXDB_INIT_ORG: nhom14
+      DOCKER_INFLUXDB_INIT_BUCKET: conveyor
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN:-nhom14-local-demo-token-change-me}
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+
+  node-red:
+    build:
+      context: ./node-red
+      dockerfile: Dockerfile
+    container_name: nhom14-node-red
+    restart: unless-stopped
+    ports:
+      - "1880:1880"
+    environment:
+      INFLUX_TOKEN: ${INFLUX_TOKEN:-nhom14-local-demo-token-change-me}
+    volumes:
+      - node_red_data:/data
+    depends_on:
+      - mosquitto
+      - influxdb
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:
+  influxdb_data:
+  influxdb_config:
+  node_red_data:

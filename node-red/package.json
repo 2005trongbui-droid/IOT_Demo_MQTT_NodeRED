@@ -1,0 +1,8 @@
+{
+  "name": "nhom14-node-red",
+  "version": "1.0.0",
+  "description": "Node-RED Dashboard 2.0 and InfluxDB nodes for conveyor demo",
+  "dependencies": {
+    "@flowfuse/node-red-dashboard": "^1.0.0"
+  }
+}

@@ -1,0 +1,792 @@
+[
+  {
+    "id": "n14tab0000000001",
+    "type": "tab",
+    "label": "Nhóm 14 Băng tải phân loại",
+    "disabled": false,
+    "info": "Upstream: telemetry, event, status, keepalive. Downstream: command."
+  },
+  {
+    "id": "n14mqtt00000001",
+    "type": "mqtt-broker",
+    "name": "Mosquitto Docker — Authentication + ACL",
+    "broker": "mosquitto",
+    "port": "1883",
+    "clientid": "",
+    "autoConnect": true,
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "15",
+    "cleansession": true,
+    "autoUnsubscribe": true,
+    "birthTopic": "",
+    "birthQos": "0",
+    "birthPayload": "",
+    "birthMsg": {},
+    "closeTopic": "",
+    "closeQos": "0",
+    "closePayload": "",
+    "closeMsg": {},
+    "willTopic": "",
+    "willQos": "0",
+    "willPayload": "",
+    "willMsg": {}
+  },
+  {
+    "id": "n14base00000001",
+    "type": "ui-base",
+    "name": "Nhóm 14 Dashboard",
+    "path": "/dashboard",
+    "includeClientData": true,
+    "acceptsClientConfig": [
+      "ui-notification",
+      "ui-control"
+    ],
+    "showPathInSidebar": true,
+    "showPageTitle": true,
+    "navigationStyle": "temporary",
+    "titleBarStyle": "default"
+  },
+  {
+    "id": "n14theme0000001",
+    "type": "ui-theme",
+    "name": "Conveyor Theme",
+    "colors": {
+      "surface": "#ffffff",
+      "primary": "#1f5e8c",
+      "bgPage": "#eef3f7",
+      "groupBg": "#ffffff",
+      "groupOutline": "#cbd5df"
+    },
+    "sizes": {
+      "density": "default",
+      "pagePadding": "12px",
+      "groupGap": "12px",
+      "groupBorderRadius": "6px",
+      "widgetGap": "10px"
+    }
+  },
+  {
+    "id": "n14page00000001",
+    "type": "ui-page",
+    "name": "Giám sát băng tải",
+    "ui": "n14base00000001",
+    "path": "/",
+    "icon": "conveyor-belt",
+    "layout": "grid",
+    "theme": "n14theme0000001",
+    "order": 1,
+    "className": "",
+    "visible": "true",
+    "disabled": "false"
+  },
+  {
+    "id": "n14group0000001",
+    "type": "ui-group",
+    "name": "Giám sát và kết quả",
+    "page": "n14page00000001",
+    "width": "12",
+    "height": "1",
+    "order": 1,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false"
+  },
+  {
+    "id": "n14group0000002",
+    "type": "ui-group",
+    "name": "Điều khiển",
+    "page": "n14page00000001",
+    "width": "12",
+    "height": "1",
+    "order": 2,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false"
+  },
+  {
+    "id": "n14mttele000001",
+    "type": "mqtt in",
+    "z": "n14tab0000000001",
+    "name": "SUBSCRIBE telemetry",
+    "topic": "huit/nhom14/detai31/conveyor/telemetry",
+    "qos": "0",
+    "datatype": "utf8",
+    "broker": "n14mqtt00000001",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 140,
+    "y": 80,
+    "wires": [
+      [
+        "n14jsontel00001"
+      ]
+    ]
+  },
+  {
+    "id": "n14jsontel00001",
+    "type": "json",
+    "z": "n14tab0000000001",
+    "name": "Parse telemetry JSON",
+    "property": "payload",
+    "action": "obj",
+    "pretty": false,
+    "x": 350,
+    "y": 80,
+    "wires": [
+      [
+        "n14fmt000000001",
+        "n14histfmt0001",
+        "n14debugtel00001"
+      ]
+    ]
+  },
+  {
+    "id": "n14fmt000000001",
+    "type": "function",
+    "z": "n14tab0000000001",
+    "name": "Tách dữ liệu hiển thị",
+    "func": "const p = msg.payload || {};\nconst result = String(p.result || 'NONE').toUpperCase();\nconst reason = String(p.reason || '');\nconst h = Number(p.height_cm);\nconst d = Number(p.distance_cm);\nconst validProduct = (result === 'PASS' || result === 'REJECT') &&\n    Number.isFinite(h) && h >= 0 && h <= 20 &&\n    Number.isFinite(d) && d >= 2 && d <= 20;\nconst counts = 'Tổng: ' + (p.total ?? 0) + ' | PASS: ' + (p.pass ?? 0) +\n    ' | REJECT: ' + (p.reject ?? 0) + ' | Lỗi đo: ' + (p.measure_error ?? 0);\n\nif (!validProduct) {\n    let label = 'Bản tin không hợp lệ — đã bỏ khỏi biểu đồ';\n    if (result === 'BOOT' || reason === 'BOOT') label = 'Khởi động — chưa có sản phẩm';\n    else if (reason === 'NO_PRODUCT') label = 'Không có sản phẩm trong vùng đo';\n    else if (result === 'MEASURE_ERROR') label = 'Lỗi đo: ' + reason + ' — không vẽ lên biểu đồ';\n    else if (result === 'NONE') label = 'Chưa có sản phẩm';\n    return [null, {payload: label}, {payload: counts}, null];\n}\n\nconst sampleId = String(p.sample_id || 'chưa có mã');\nreturn [\n    {payload: h},\n    {payload: result + ' — ' + reason + ' | Mã mẫu: ' + sampleId},\n    {payload: counts},\n    {topic: 'Chiều cao (cm)', payload: h, timestamp: Date.now()}\n];",
+    "outputs": 4,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 570,
+    "y": 80,
+    "wires": [
+      [
+        "n14gauge0000001"
+      ],
+      [
+        "n14result000001"
+      ],
+      [
+        "n14stats0000001"
+      ],
+      [
+        "n14chart0000001"
+      ]
+    ]
+  },
+  {
+    "id": "n14gauge0000001",
+    "type": "ui-gauge",
+    "z": "n14tab0000000001",
+    "name": "Chiều cao sản phẩm",
+    "group": "n14group0000001",
+    "order": 1,
+    "width": "4",
+    "height": "3",
+    "gtype": "gauge-34",
+    "gstyle": "needle",
+    "label": "Chiều cao",
+    "units": "cm",
+    "min": 0,
+    "max": 20,
+    "segments": [
+      {
+        "from": 0,
+        "color": "#d9534f"
+      },
+      {
+        "from": 8,
+        "color": "#5cb85c"
+      },
+      {
+        "from": 12,
+        "color": "#f0ad4e"
+      }
+    ],
+    "size": "6",
+    "className": "",
+    "x": 860,
+    "y": 40,
+    "wires": []
+  },
+  {
+    "id": "n14result000001",
+    "type": "ui-text",
+    "z": "n14tab0000000001",
+    "group": "n14group0000001",
+    "name": "Kết quả phân loại",
+    "label": "Kết quả gần nhất",
+    "order": 2,
+    "width": "4",
+    "height": "1",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "x": 850,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "n14stats0000001",
+    "type": "ui-text",
+    "z": "n14tab0000000001",
+    "group": "n14group0000001",
+    "name": "Thống kê",
+    "label": "Thống kê",
+    "order": 3,
+    "width": "8",
+    "height": "1",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "x": 850,
+    "y": 150,
+    "wires": []
+  },
+  {
+    "id": "n14chart0000001",
+    "type": "ui-chart",
+    "z": "n14tab0000000001",
+    "group": "n14group0000001",
+    "name": "Lịch sử chiều cao gần nhất",
+    "label": "Chiều cao theo thời gian",
+    "order": 4,
+    "chartType": "line",
+    "category": "",
+    "categoryType": "str",
+    "xAxisType": "time",
+    "xAxisProperty": "timestamp",
+    "xAxisPropertyType": "msg",
+    "yAxisProperty": "payload",
+    "ymin": "0",
+    "ymax": "20",
+    "showLegend": false,
+    "removeOlder": 1,
+    "removeOlderUnit": "3600",
+    "removeOlderPoints": "100",
+    "colors": [
+      "#1f77b4"
+    ],
+    "width": "12",
+    "height": "5",
+    "className": "",
+    "x": 860,
+    "y": 210,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "n14debugtel00001",
+    "type": "debug",
+    "z": "n14tab0000000001",
+    "name": "Debug telemetry",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 560,
+    "y": 130,
+    "wires": []
+  },
+  {
+    "id": "n14mtevent000001",
+    "type": "mqtt in",
+    "z": "n14tab0000000001",
+    "name": "SUBSCRIBE event",
+    "topic": "huit/nhom14/detai31/conveyor/event",
+    "qos": "0",
+    "datatype": "utf8",
+    "broker": "n14mqtt00000001",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 150,
+    "y": 300,
+    "wires": [
+      [
+        "n14jsonevent0001"
+      ]
+    ]
+  },
+  {
+    "id": "n14jsonevent0001",
+    "type": "json",
+    "z": "n14tab0000000001",
+    "name": "Parse event JSON",
+    "property": "payload",
+    "action": "obj",
+    "pretty": false,
+    "x": 350,
+    "y": 300,
+    "wires": [
+      [
+        "n14fmtevent0001"
+      ]
+    ]
+  },
+  {
+    "id": "n14fmtevent0001",
+    "type": "function",
+    "z": "n14tab0000000001",
+    "name": "Định dạng sự kiện",
+    "func": "const p = msg.payload || {};\nmsg.payload = `${p.event || 'EVENT'} | ${p.result || ''} | ${p.reason || ''} | cao ${Number(p.height_cm || 0).toFixed(2)} cm`;\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 550,
+    "y": 300,
+    "wires": [
+      [
+        "n14eventtext001"
+      ]
+    ]
+  },
+  {
+    "id": "n14eventtext001",
+    "type": "ui-text",
+    "z": "n14tab0000000001",
+    "group": "n14group0000001",
+    "name": "Sự kiện mới nhất",
+    "label": "Sự kiện mới nhất",
+    "order": 5,
+    "width": "12",
+    "height": "1",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "x": 800,
+    "y": 300,
+    "wires": []
+  },
+  {
+    "id": "n14mtstatus00001",
+    "type": "mqtt in",
+    "z": "n14tab0000000001",
+    "name": "SUBSCRIBE status",
+    "topic": "huit/nhom14/detai31/conveyor/status",
+    "qos": "0",
+    "datatype": "utf8",
+    "broker": "n14mqtt00000001",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 150,
+    "y": 370,
+    "wires": [
+      [
+        "n14jsonstatus001"
+      ]
+    ]
+  },
+  {
+    "id": "n14jsonstatus001",
+    "type": "json",
+    "z": "n14tab0000000001",
+    "name": "Parse status JSON",
+    "property": "payload",
+    "action": "obj",
+    "pretty": false,
+    "x": 350,
+    "y": 370,
+    "wires": [
+      [
+        "n14fmtstatus001"
+      ]
+    ]
+  },
+  {
+    "id": "n14fmtstatus001",
+    "type": "function",
+    "z": "n14tab0000000001",
+    "name": "Trạng thái ESP32",
+    "func": "const p = msg.payload || {};\nconst state = p.state || 'UNKNOWN';\nconst text = state + (p.message ? ' — ' + p.message : '');\nconst counts = 'Tổng: ' + (p.total ?? 0) + ' | PASS: ' + (p.pass ?? 0) +\n    ' | REJECT: ' + (p.reject ?? 0) + ' | Lỗi đo: ' + (p.measure_error ?? 0);\nconst statusMessage = {...msg, payload: text};\nconst historyMessage = {...msg, payload: {state, message: p.message || '', enabled: p.enabled === true}};\nconst countsMessage = {payload: counts};\nreturn [statusMessage, historyMessage, countsMessage];",
+    "outputs": 3,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 550,
+    "y": 370,
+    "wires": [
+      [
+        "n14devicestatus1"
+      ],
+      [
+        "n14histstatus01"
+      ],
+      [
+        "n14stats0000001"
+      ]
+    ]
+  },
+  {
+    "id": "n14devicestatus1",
+    "type": "ui-text",
+    "z": "n14tab0000000001",
+    "group": "n14group0000001",
+    "name": "Trạng thái thiết bị",
+    "label": "Trạng thái ESP32",
+    "order": 6,
+    "width": "6",
+    "height": "1",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "x": 800,
+    "y": 370,
+    "wires": []
+  },
+  {
+    "id": "n14mtkeep00001",
+    "type": "mqtt in",
+    "z": "n14tab0000000001",
+    "name": "SUBSCRIBE keepalive",
+    "topic": "huit/nhom14/detai31/conveyor/keepalive",
+    "qos": "0",
+    "datatype": "utf8",
+    "broker": "n14mqtt00000001",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 150,
+    "y": 440,
+    "wires": [
+      [
+        "n14jsonkeep0001"
+      ]
+    ]
+  },
+  {
+    "id": "n14jsonkeep0001",
+    "type": "json",
+    "z": "n14tab0000000001",
+    "name": "Parse heartbeat JSON",
+    "property": "payload",
+    "action": "obj",
+    "pretty": false,
+    "x": 360,
+    "y": 440,
+    "wires": [
+      [
+        "n14hbprocess001"
+      ]
+    ]
+  },
+  {
+    "id": "n14hbprocess001",
+    "type": "function",
+    "z": "n14tab0000000001",
+    "name": "Cập nhật heartbeat",
+    "func": "const p = msg.payload || {};\nflow.set('lastHeartbeatAt', Date.now());\nflow.set('deviceOffline', false);\nmsg.payload = p.online === false ? 'OFFLINE — heartbeat báo mất kết nối' : `ONLINE — heartbeat nhận lúc ${new Date().toLocaleTimeString()}`;\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 570,
+    "y": 440,
+    "wires": [
+      [
+        "n14onlineview01"
+      ]
+    ]
+  },
+  {
+    "id": "n14onlineview01",
+    "type": "ui-text",
+    "z": "n14tab0000000001",
+    "group": "n14group0000001",
+    "name": "Keep Alive watchdog",
+    "label": "Giám sát Keep Alive",
+    "order": 7,
+    "width": "6",
+    "height": "1",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "x": 820,
+    "y": 440,
+    "wires": []
+  },
+  {
+    "id": "n14watchinject1",
+    "type": "inject",
+    "z": "n14tab0000000001",
+    "name": "Watchdog mỗi giây",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "1",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 510,
+    "wires": [
+      [
+        "n14watchfunc001"
+      ]
+    ]
+  },
+  {
+    "id": "n14watchfunc001",
+    "type": "function",
+    "z": "n14tab0000000001",
+    "name": "Quá 15 giây → OFFLINE",
+    "func": "const now = Date.now();\nlet last = flow.get('lastHeartbeatAt');\nif (!last) { flow.set('lastHeartbeatAt', now); return null; }\nif (now - last > 15000 && !flow.get('deviceOffline')) {\n  flow.set('deviceOffline', true);\n  msg.payload = `OFFLINE — quá ${Math.floor((now-last)/1000)} giây không nhận heartbeat`;\n  return msg;\n}\nreturn null;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 410,
+    "y": 510,
+    "wires": [
+      [
+        "n14onlineview01",
+        "n14debugoffline1"
+      ]
+    ]
+  },
+  {
+    "id": "n14debugoffline1",
+    "type": "debug",
+    "z": "n14tab0000000001",
+    "name": "Cảnh báo thiết bị OFFLINE",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "payload",
+    "statusType": "msg",
+    "x": 680,
+    "y": 530,
+    "wires": []
+  },
+  {
+    "id": "n14startbtn001",
+    "type": "ui-button",
+    "z": "n14tab0000000001",
+    "group": "n14group0000002",
+    "name": "START",
+    "label": "START",
+    "order": 1,
+    "width": "4",
+    "height": "1",
+    "emulateClick": false,
+    "tooltip": "Cho phép hệ thống phân loại",
+    "color": "",
+    "bgcolor": "#2e8b57",
+    "className": "",
+    "icon": "play_arrow",
+    "iconPosition": "left",
+    "payload": "START",
+    "payloadType": "str",
+    "topic": "topic",
+    "topicType": "str",
+    "buttonColor": "#2e8b57",
+    "textColor": "#ffffff",
+    "iconColor": "#ffffff",
+    "x": 170,
+    "y": 620,
+    "wires": [
+      [
+        "n14commandout01"
+      ]
+    ]
+  },
+  {
+    "id": "n14stopbtn0001",
+    "type": "ui-button",
+    "z": "n14tab0000000001",
+    "group": "n14group0000002",
+    "name": "STOP",
+    "label": "STOP",
+    "order": 2,
+    "width": "4",
+    "height": "1",
+    "emulateClick": false,
+    "tooltip": "Dừng nhận sản phẩm mới",
+    "color": "",
+    "bgcolor": "#c94a46",
+    "className": "",
+    "icon": "stop",
+    "iconPosition": "left",
+    "payload": "STOP",
+    "payloadType": "str",
+    "topic": "topic",
+    "topicType": "str",
+    "buttonColor": "#c94a46",
+    "textColor": "#ffffff",
+    "iconColor": "#ffffff",
+    "x": 170,
+    "y": 670,
+    "wires": [
+      [
+        "n14commandout01"
+      ]
+    ]
+  },
+  {
+    "id": "n14resetbtn001",
+    "type": "ui-button",
+    "z": "n14tab0000000001",
+    "group": "n14group0000002",
+    "name": "RESET",
+    "label": "RESET",
+    "order": 3,
+    "width": "4",
+    "height": "1",
+    "emulateClick": false,
+    "tooltip": "Đặt lại bộ đếm",
+    "color": "",
+    "bgcolor": "#d99100",
+    "className": "",
+    "icon": "refresh",
+    "iconPosition": "left",
+    "payload": "RESET",
+    "payloadType": "str",
+    "topic": "topic",
+    "topicType": "str",
+    "buttonColor": "#d99100",
+    "textColor": "#ffffff",
+    "iconColor": "#ffffff",
+    "x": 170,
+    "y": 720,
+    "wires": [
+      [
+        "n14commandout01"
+      ]
+    ]
+  },
+  {
+    "id": "n14commandout01",
+    "type": "mqtt out",
+    "z": "n14tab0000000001",
+    "name": "PUBLISH /command đến ESP32",
+    "topic": "huit/nhom14/detai31/conveyor/command",
+    "qos": "0",
+    "retain": "false",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "n14mqtt00000001",
+    "x": 490,
+    "y": 670,
+    "wires": []
+  },
+  {
+    "id": "n14histfmt0001",
+    "type": "function",
+    "z": "n14tab0000000001",
+    "name": "Chuẩn bị Data History",
+    "func": "const p = msg.payload || {};\nconst token = env.get('INFLUX_TOKEN');\nif (!token) { node.warn('Chưa cấu hình INFLUX_TOKEN; bỏ qua ghi Data History'); return null; }\n\nconst result = String(p.result || '').toUpperCase();\nconst h = Number(p.height_cm);\nconst d = Number(p.distance_cm);\nconst sampleId = String(p.sample_id || '');\nconst validProduct = (result === 'PASS' || result === 'REJECT') &&\n    Number.isFinite(h) && h >= 0 && h <= 20 &&\n    Number.isFinite(d) && d >= 2 && d <= 20 && sampleId.length > 0;\nif (!validProduct) return null;\n\n// Heartbeat/status is separate: persist each classified product only once.\nif (flow.get('lastSavedSampleId') === sampleId) return null;\nflow.set('lastSavedSampleId', sampleId);\n\nconst fields = [];\nfor (const k of ['distance_cm','height_cm','total','pass','reject','measure_error','reject_rate']) {\n    const v = Number(p[k]);\n    if (Number.isFinite(v)) fields.push(k + '=' + v);\n}\nconst quote = value => '\"' + String(value).replace(/\"/g, '') + '\"';\nif (typeof p.enabled === 'boolean') fields.push('enabled=' + (p.enabled ? 1 : 0));\nfields.push('result=' + quote(result));\nfields.push('reason=' + quote(String(p.reason || '')));\nfields.push('sample_id=' + quote(sampleId));\n\nmsg.headers = { Authorization: 'Token ' + token, 'Content-Type': 'text/plain; charset=utf-8' };\nmsg.payload = 'conveyor,device=esp32-conveyor-nhom14 ' + fields.join(',') + ' ' + Date.now();\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 580,
+    "y": 180,
+    "wires": [
+      [
+        "n14influxhttp01"
+      ]
+    ]
+  },
+  {
+    "id": "n14influxhttp01",
+    "type": "http request",
+    "z": "n14tab0000000001",
+    "name": "Ghi InfluxDB Data History",
+    "method": "POST",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "http://influxdb:8086/api/v2/write?org=nhom14&bucket=conveyor&precision=ms",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": true,
+    "headers": [],
+    "x": 850,
+    "y": 180,
+    "wires": [
+      [
+        "n14influxdebug01"
+      ]
+    ]
+  },
+  {
+    "id": "n14influxdebug01",
+    "type": "debug",
+    "z": "n14tab0000000001",
+    "name": "InfluxDB write result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "statusCode",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1070,
+    "y": 180,
+    "wires": []
+  },
+  {
+    "id": "n14histstatus01",
+    "type": "function",
+    "z": "n14tab0000000001",
+    "name": "Lưu lịch sử trạng thái",
+    "func": "const p = msg.payload || {};\nconst token = env.get('INFLUX_TOKEN');\nif (!token) return null;\nconst quote = value => '\"' + String(value).replaceAll('\"','') + '\"';\nconst fields = [`state=${quote(p.state || 'UNKNOWN')}`, `message=${quote(p.message || '')}`, `enabled=${p.enabled ? 1 : 0}`];\nmsg.headers = { Authorization: `Token ${token}`, 'Content-Type': 'text/plain; charset=utf-8' };\nmsg.payload = `device_status,device=esp32-conveyor-nhom14 ${fields.join(',')} ${Date.now()}`;\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 590,
+    "y": 400,
+    "wires": [
+      [
+        "n14influxhttp01"
+      ]
+    ]
+  }
+]
